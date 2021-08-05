@@ -25,6 +25,7 @@ class PyramidalCell(modelcell):
     def __init__(self, gid = -1):
         super().__init__()
         self.gid = gid
+        self.i_of_int = None
         self.create_sections() 
         self.build_topology()
         self.build_subsets() # subsets()
@@ -561,6 +562,7 @@ class PyramidalCell(modelcell):
         syn_.tcon = 2.3    
         syn_.tcoff = 100
         syn_.gNMDAmax = 1    # use connection weight to determine max cond
+        syn_.mg = mg_param
 
         # E4
         syn_ = h.MyExp2Syn(self.radTprox(0.5))
@@ -701,12 +703,18 @@ class PyramidalCell(modelcell):
         syn_.e = -75
 
                 
-        # I23
+        # E23
         syn_ = h.STDPE2(self.radTmed(0.5))
         self.pre_list.append(syn_)    # AMPA modifiable	CA3 Schaffer collaterals
         syn_.tau1 = 0.5
         syn_.tau2 = 3
         syn_.e = 0
+        self.i_of_int = len(self.pre_list)
+        
+        # self.pre_list[i_of_int].i  # TODO record this into a vector
+        # If you want this info for any particular synapse, this
+        # should work for all of them as long as you get the updated
+        # nmda.mod and recompile.
         
 class OLMCell(modelcell):
     """ OLM Cell definition """

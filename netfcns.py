@@ -45,7 +45,7 @@ def connectcells(cells, ranlist, nclist, pop_by_name, post_type, pre_type, synst
                     
                     nc.delay = delay
                     nc.weight[0] = weight
-                    nclist.append(nc)
+                    nclist.append(nc) # TODO Marianne provide organization so it's obvious which nc weights to update
                 
                 u[r-int(pop_by_name[pre_type].gidst)] = 1
                 nsyn += 1
@@ -58,7 +58,7 @@ def connectcells(cells, ranlist, nclist, pop_by_name, post_type, pre_type, synst
 # read active PCs from pattern file
 # all-to-all connectivity between EC and PC pattern cells
 # appends the PC NetCons to a List called ncslist
-def connectEC(FPATT, ECPATT, NPATT, synstart, numsyn, cells, pop_by_name, pc):# {local i, gid, ncue  localobj cue, cstim, syn, src, nc, fp, target
+def connectEC(FPATT, ECPATT, NPATT, synstart, numsyn, cells, pop_by_name, pc, mem_num=0):# {local i, gid, ncue  localobj cue, cstim, syn, src, nc, fp, target
     ncelist = []
     
     # read pattern file (ECPATT=num rows, NPATT = num columns)
@@ -71,7 +71,7 @@ def connectEC(FPATT, ECPATT, NPATT, synstart, numsyn, cells, pop_by_name, pc):# 
     for i in range(len(cue)):
         ##if (!pc.gid_exists(i+iPC)) { continue }
         #if (cue[i,0] == 1 ): # TODO added a column index that wouldn't be there usually?
-        if (cue[i,0] == 1 and pc.gid_exists(i+pop_by_name["PyramidalCell"].gidst)): # Check if owned by this core
+        if (cue[i,mem_num] == 1 and pc.gid_exists(i+pop_by_name["PyramidalCell"].gidst)): # Check if owned by this core
             # print "Pattern cell ", i
             # target = pc.gid2cell(i+iPC)
             target = pc.gid2cell(i+pop_by_name["PyramidalCell"].gidst)
@@ -165,6 +165,10 @@ def connectCA3(FCONN, C_P, EM_CA3, EN_CA3, cells, pop_by_name, connect_random_lo
                         #nc = pc.gid_connect(j+iCA3, syn)
                         nc2.weight[0] = CLWGT    # unlearned weight
 
+                    if np.random.rand(1)[0]<0.1:
+                        nc2.weight[0] = 0 # lower synaptic transmission by
+                                          # zeroing out ("killing") some synapses
+
     return ncslist
 
 # sets the CA3, EC and Septal background inputs
@@ -231,7 +235,7 @@ def mkEC(cells, ranlist, pop_by_name, pc): # {local i, necs localobj cstim, rs
             necs += 1
 
 # setup activity pattern in input cue stims
-def mkcue(FPATT, CPATT, CFRAC, NPATT, SPATT, cells, ranlist, pop_by_name, pc):
+def mkcue(FPATT, CPATT, CFRAC, NPATT, SPATT, cells, ranlist, pop_by_name, pc, mem_num=0):
     if (pc.id()==0 and printflag >0):
         print( "Make cue (CA3) input...")
     # open patterns file
@@ -242,7 +246,7 @@ def mkcue(FPATT, CPATT, CFRAC, NPATT, SPATT, cells, ranlist, pop_by_name, pc):
     for i in range(len(cue)):
         if (pc.gid_exists(i+pop_by_name["CA3Cell"].gidst)):
             if (ncue <= SPATT*CFRAC):     # fraction of active cells in cue
-                if (cue[i,0] == 1): #TODO find the correct column
+                if (cue[i,mem_num] == 1): #TODO find the correct column
                     if (pc.id()==0 and printflag >1):
                         print("Cue cell ", i)
                     cstim = pc.gid2cell(i+pop_by_name["CA3Cell"].gidst)
@@ -299,7 +303,10 @@ def vrecord(cells,pop_by_name, iPPC, iNPPC, pc):
     results = {}
     for cell in cells:	# loop over possible target cells
         gid = cell.gid	# id of cell
+        results["cellv_" + str(gid)] = h.Vector().record(cell.soma(0.5)._ref_v)
         if (gid==iPPC):
+            # TODO (if you want these synaptic currents for later)
+            #results["ca3syncurrent"] = h.Vector().record(cell.pre_list[cell.i_of_int].i)
             results["pvsoma"] = h.Vector().record(cell.soma(0.5)._ref_v)
             results["pvsr"] = h.Vector().record(cell.radTmed(0.5)._ref_v)
             results["pvslm"] = h.Vector().record(cell.lm_thick1(0.5)._ref_v)

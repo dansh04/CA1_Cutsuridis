@@ -40,6 +40,15 @@ netfcns.usepar = usepar
 printflag = 1 # 0: almost silent, 1: some prints, 2: many prints
 netfcns.printflag = printflag
 
+make_confusion=1 # make a confusing input for the model
+netfile = 'N100S20P5'
+netfileActual = netfile
+
+if make_confusion==1:
+    # code that makes a mixed memory pattern for stimulating
+    netfile += 'confused'
+
+
 # Set default values for parameters that can be passed in at the command line
 plotflag = 0
 network_scale = 1 # set to 1 for full scale or 0.2 for a quick test with a small network
@@ -49,7 +58,6 @@ numCycles = 6 # set to 2 for a short test network or 8 for a full simulation
 simname="guitar"
 connect_random_low_start_ = 1  # low seed for mcell_ran4_init()
 
-netfile = 'N100S20P5'
 electrostim = 0 # 0 = no stimulation, 1 = stimulation according to parameters set farther down in code
 percentDeath = .0 # fraction of pyramidal cells to kill off
 
@@ -365,6 +373,10 @@ ncslist = netfcns.connectCA3(FCONN, C_P, EM_CA3, EN_CA3, cells, pop_by_name, con
 # SET CUES FOR PATTERNS
 #################
 
+# In here, if you want to cue multiple memories or different
+# memories, you can pass in one additional keyword/default
+# argument of mem_num, otherwise it defaults to 0, the first
+# memory in the file
 netfcns.mkcue(FPATT, CPATT, CFRAC, NPATT, SPATT, cells, ranlist, pop_by_name, pc)	# cue from already stored pattern
 #netfcns.mkcue(FSTORE, CPATT, CFRAC, NSTORE)	# cue from new pattern
 netfcns.mkEC(cells, ranlist, pop_by_name, pc)
