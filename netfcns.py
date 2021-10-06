@@ -350,7 +350,7 @@ def spikeout(cells,fstem,pc,list_clamps,list_deadgids):
     
     pc.barrier()  # wait for all hosts to get to this point
     for rank in range(1,pc.nhost()):
-        # pc.barrier()
+        pc.barrier()
         if (rank==pc.id()):
             with open("{}_cell_death.dat".format(fstem), 'a') as f:
                 for deadgid in list_deadgids:

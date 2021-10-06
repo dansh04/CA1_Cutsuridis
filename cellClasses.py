@@ -22,22 +22,20 @@ class modelcell():
 
 class PyramidalCell(modelcell):
     """ Pyramidal Cell definition """
-    def __init__(self, gid = -1, mgconc = 1, affinity = 45):
+    def __init__(self, gid = -1, mgconc = 1):
         super().__init__()
         self.gid = gid
         self.mgconc = mgconc
-        self.affinity = affinity
-        self.numampar = 200
+        self.stimobj = h.IClamp(self.soma(0.5))
+        self.stimobj.delay = 1e9
+        self.stimobj.dur = 1
+        self.stimobj.amp = 0  
         self.list_syns = []
         self.create_sections() 
         self.build_topology()
         self.build_subsets() # subsets()
         self.define_geometry() # geom()
         self.define_biophysics() # biophys()
-        self.stimobj = h.IClamp(self.soma(0.5))
-        self.stimobj.delay = 1e9
-        self.stimobj.dur = 1
-        self.stimobj.amp = 0  
         # self.addSynapses() # synapses
         
     def __repr__(self):
@@ -543,7 +541,6 @@ class PyramidalCell(modelcell):
         self.pre_list.append(syn_)    # NMDA        CA3 Shaffer collateral
         syn_.gmax = 0.00065
         syn_.mg = self.mgconc
-        syn_.affinity = self.affinity
         # syn_.tcon = 2.3    
         # syn_.tcoff = 100
         # syn_.gNMDAmax = 1    # use connection weight to determine max cond

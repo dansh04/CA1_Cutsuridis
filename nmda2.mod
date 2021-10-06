@@ -5,7 +5,7 @@ TITLE nmda synapse
 NEURON {
 	POINT_PROCESS NMDA2
 	NONSPECIFIC_CURRENT i
-    RANGE gmax, enmda, eca, onset, tauF, tauS, mg, pnmda, pca, alpha, beta, T, v, gnmda, i, B
+    RANGE gmax, enmda, eca, onset, tauF, tauS, mg, pnmda, pca, alpha, beta, T, v, gnmda, i, B, affinity
 }
 
 UNITS {
@@ -23,7 +23,8 @@ PARAMETER {
    tauF = 9       (ms)
    tauS = 90      (ms)
    mg = 1         (mM)
-   alpha = 0.072  <0,1e4>         
+   alpha = 0.072  <0,1e4>   
+   affinity = 45      
 	beta = 0.0066
 	T = 1
 	util = 0.3
@@ -38,22 +39,27 @@ ASSIGNED {
 
 STATE {
     r       : fraction of open channels
+    affin   : percentage of Ketamine binded to the NMDAr
 }
 
 BREAKPOINT {
 	SOLVE state METHOD derivimplicit 
     B = mgblock(v)
-    gnmda = gmax*((tauF*tauS)/(tauF-tauS))*duale((t-onset)/tauF,(t-onset)/tauS)
-    i = gnmda*B*r*(v-enmda)
+    gnmda = (gmax*((tauF*tauS)/(tauF-tauS))*duale((t-onset)/tauF,(t-onset)/tauS))*affin
+    i = (gnmda*B*r*(v-enmda))
 }
 
 DERIVATIVE state {
     r' = alpha*T*(1-r)-beta*r
+    affin' = ((100-affinity)/100)*(-log(2)*affinity/(0.0025*pow(2,(t/0.0025))))
 }
+
 
 INITIAL {
     r = 0
+    
 }
+
 
 FUNCTION mgblock(v(mV)) {
     mgblock = 1/(1+exp(-0.062(/mV)*v)*(mg/3.57(mM)))

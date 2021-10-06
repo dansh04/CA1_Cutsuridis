@@ -42,7 +42,7 @@ netfcns.printflag = printflag
 
 # Set default values for parameters that can be passed in at the command line
 plotflag = 0
-network_scale = 1 # set to 1 for full scale or 0.2 for a quick test with a small network
+network_scale = 0.2 # set to 1 for full scale or 0.2 for a quick test with a small network
 scaleEScon = 1 # scaling factor for number of excitatory connections in the network, should be set to 1
 
 numCycles = 6 # set to 2 for a short test network or 8 for a full simulation
@@ -53,11 +53,13 @@ netfile = 'N100S20P5'
 electrostim = 0 # 0 = no stimulation, 1 = stimulation according to parameters set farther down in code
 percentDeath = .0 # fraction of pyramidal cells to kill off
 
-calthresh = 0.01
-avgcalthresh = 0.01
+volthresh = -55
+avgvolthresh = -56
+calthresh = 0.02
+avgcalthresh = 0.02
 spikethresh = 3
-mgconc = 2.0
-affinitytype = 45
+amountspikes = 0
+mgconc = 0.1
 
 # Check for parameters being passed in via the command line
 argadd = 1
@@ -72,14 +74,12 @@ if len(sys.argv)>(startlen):
     simname = sys.argv[startlen]
     if len(sys.argv)>(argadd+startlen):
         mgconc = float(sys.argv[argadd+startlen])
-        if len(sys.argv) > (argadd+startlen+len(str(mgconc))):
-            affinitytype = float(sys.argv[argadd+startlen+len(str(mgconc))])
-            if len(sys.argv)>(2*argadd+startlen+len(str(mgconc))):
-                electrostim = float(sys.argv[2*argadd+startlen])
-                if len(sys.argv)>(3*argadd+startlen+len(str(mgconc))):
-                    numCycles = int(sys.argv[3*argadd+startlen])
-                    if len(sys.argv)>(4*argadd+startlen+len(str(mgconc))):
-                        connect_random_low_start_ = float(sys.argv[4*argadd+startlen])
+        if len(sys.argv)>(2*argadd+startlen):
+            electrostim = float(sys.argv[2*argadd+startlen])
+            if len(sys.argv)>(3*argadd+startlen):
+                numCycles = int(sys.argv[3*argadd+startlen])
+                if len(sys.argv)>(4*argadd+startlen):
+                    connect_random_low_start_ = float(sys.argv[4*argadd+startlen])
                         
 rmchars=['"',"'","\\"," "]
 
@@ -105,13 +105,11 @@ params = {"simname":simname,
           "network_scale":network_scale,
           "SIMDUR":SIMDUR,
           "dt":h.dt,
-          "spikethresh":spikethresh,
           "connect_random_low_start_": connect_random_low_start_,
           "scaleEScon": scaleEScon,
           "electrostim": electrostim,
           "percentDeath": percentDeath,
-          "mgconc": mgconc,
-          "affinitytype": affinitytype}
+          "mgconc": mgconc}
 
 with open('pyresults/' + simname + '.pickle', 'wb') as f:
     pickle.dump(params, f, pickle.HIGHEST_PROTOCOL)
@@ -189,7 +187,6 @@ for pop in poplist:
             exec("newcell = cellClasses."+pop.classtype+ "(int("+str(j)+"))")
             if (j < 100*network_scale):
                 newcell.mgconc = mgconc
-                newcell.affinity = affinitytype
                 newcell.addSynapses()
             if (pop.isart==1):
                 newcell.stim.gid = int(j)
@@ -403,10 +400,8 @@ for x in range(num2pick):
 
 if (pc.id()==0 and percentDeath>0):
     print("List of cells that died:")
-    
 list_clamps=[]
 list_deadgids = []
-# pc.barrier()
 
 for cell2kill in deadlist:
     if (pc.id()==0):
@@ -483,31 +478,33 @@ h('fihw = new FInitializeHandler(2, "midbal()")')
 if (pc.id()==0 and printflag>0):
     print("Now running simulation at scale = ", network_scale, " for time = ", SIMDUR, " with scaleEScon = ", scaleEScon)
 
-StepBy = 50 
-AnotherStepBy = 1
+StepBy = 100 # ms, how long you want to go until the 
+             # occasional_fcn is run again
+AnotherStepBy = 25
 dt = 0.025
 
-def spikingcount():
+def occasional_fcn():
     # do some stuff here, look at voltages, etc
     for cell in cells: #Check Voltage list, if the cell needs to die.
         # if (cell.gid>pop_by_name['PyramidalCell'].gidend):
         if (h.t<7.5 or cell.gid>=100*network_scale or cell.gid in list_deadgids):
             break
         cell_dies = 0
-        cell_dies = checkifcelldies(np.asarray(netfcns.idvec),np.asarray(netfcns.tvec),cell.gid,spikethresh)
+        cell_dies = checkifcelldies(np.asarray(results["cellv_" + str(cell.gid)])[int(h.t//h.dt)-300:int(h.t//h.dt):1],volthresh,avgvolthresh)
         
         if cell_dies == 1:
-            cell.stimobj.delay = h.t + 2
-            cell.stimobj.dur = SIMDUR
-            cell.stimobj.amp = -.4    
-            list_clamps.append(cell.stimobj)
+            stimobj = h.IClamp(cell.soma(0.5))
+            stimobj.delay = 2
+            stimobj.dur = SIMDUR
+            stimobj.amp = -.4    
+            list_clamps.append(stimobj)
             list_deadgids.append(cell.gid)
     # And then...
     # Deathlists
     # UPDATE percentdeath as well.
-    h.cvode.event(h.t+StepBy, spikingcount) # plan to run again in StepBy amount of time
+    h.cvode.event(h.t+StepBy, occasional_fcn) # plan to run again in StepBy amount of time
     
-def synapticpotentiation():
+def another_occasional_fcn():
     for cell in cells:
         # if(cell.gid>pop_by_name['PyramidalCell'].gidend):
         if (h.t<2 or cell.gid>=100*network_scale):
@@ -516,40 +513,41 @@ def synapticpotentiation():
         more_Ampa = checkAMPAr(0.84*np.asarray(results["celli_" + str(cell.gid)])[int(h.t//h.dt)-75:int(h.t//h.dt):1],calthresh,avgcalthresh)
         
         if more_Ampa == 1:
-            cell.numampar += 1
             for syn in cell.list_syns:
-                syn.weight[0] += 0.0005*(200/cell.numampar)# LTP
-    # TODO not sure weight Model limitation, what if Ca conc is too little?
-    h.cvode.event(h.t+AnotherStepBy, synapticpotentiation)
-    
-def synapticdepression():
-    for cell in cells:
-        # if(cell.gid>pop_by_name['PyramidalCell'].gidend):
-        if (h.t<2 or cell.gid>=100*network_scale):
-            break
-        more_Ampa = 0
-        more_Ampa = checkAMPAr(0.84*np.asarray(results["celli_" + str(cell.gid)])[int(h.t//h.dt)-75:int(h.t//h.dt):1],calthresh,avgcalthresh)
-        
+                syn.weight[0] += 0.0001 # LTP
         if more_Ampa == -1:
-            
             for syn in cell.list_syns:
-                syn.weight[0] -= 0.0005*(150/cell.numampar) # LTD
-                if syn.weight[0] < 0:
-                    syn.weight[0] = 0
+                syn.weight[0] -= 0.00001 # LDP
     # TODO not sure weight Model limitation, what if Ca conc is too little?
-    h.cvode.event(h.t+AnotherStepBy, synapticdepression)
+    h.cvode.event(h.t+AnotherStepBy, another_occasional_fcn)
     
-fih1 = h.FInitializeHandler(2, spikingcount) # run it at the start of the sim
-fih2 = h.FInitializeHandler(2, synapticpotentiation) # run it at the start of the sim
-fih3 = h.FInitializeHandler(2, synapticdepression) # run it at the start of the sim
+# def again_occasional_fcn():
+#     for cell in cells:
+#         if(cell.gid>= 100*network_scale):
+#             break
+#         spiking_enough = 0
+#         spiking_enough = checkspike(np.asarray(idvec["celli_" + str(cell.gid)])(int(h.t//h.dt)-25))
+        
+#         if spiking_enough == 1:
+#             stimobj = h.IClamp(cell.soma(0.5))
+#             stimobj.delay = 2
+#             stimobj.dur = SIMDUR
+#             stimobj.amp = -.4    
+#             list_clamps.append(stimobj)
+    
+fihw = h.FInitializeHandler(2, occasional_fcn) # run it at the start of the sim
+fihe = h.FInitializeHandler(2, another_occasional_fcn) # run it at the start of the sim
 
-def checkifcelldies(idvec,tvec,gid,spikethresh):
-    spike_indexes = np.where(idvec==gid)
-    my_spikes = np.where(tvec[spike_indexes]>(h.t-100))
-
-    if(len(my_spikes[0])>=spikethresh): 
+def checkifcelldies(V_overtime,volthresh,avgvolthresh):
+    mean = np.mean(V_overtime)
+    mini = np.min(V_overtime)
+    
+    if(mini>volthresh): 
+        return 1
+    if(mean>avgvolthresh):
         return 1
     return 0
+    #TODO relative maxima func, set avgthresh numero, set amountspikes number, else condition
     
 def checkAMPAr(I_overtime,calthresh,avgcalthresh):
     mean = -np.mean(I_overtime)
@@ -557,11 +555,14 @@ def checkAMPAr(I_overtime,calthresh,avgcalthresh):
     
     if(mini>calthresh): 
         return 1
-    elif(mean>avgcalthresh):
+    if(mean>avgcalthresh):
         return 1
     else:
         return -1
     return 0
+
+def checkspike(spikecount,spikethresh):
+    return -1
 
 if usepar==1:
     prun() # run and print results
@@ -599,9 +600,9 @@ if perf is not None:
 # PLOT RESULTS
 #################
 
-import plotfcns as pf
+# import plotfcns as pf
 
-pf.plotresults(params)
+# pf.plotresults(params)
 
     # if 'cells' in locals():
     #     netfcns.spikeplot(cells,h.tstop,ntot)
