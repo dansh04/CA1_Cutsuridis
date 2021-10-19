@@ -51,7 +51,7 @@ BREAKPOINT {
 
 DERIVATIVE state {
     r' = alpha*T*(1-r)-beta*r
-    affin' = ((100-affinity)/100)*(-log(2)*affinity/(0.0025*pow(2,(t/0.0025))))
+    affin' = ((100-affinity)/100)*(-log(2)*affinity/(0.0025*pow(2,(t/0.0025)))) : What do i put for t when sim is just 1500ms
 }
 
 

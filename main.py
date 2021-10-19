@@ -45,7 +45,7 @@ plotflag = 0
 network_scale = 1 # set to 1 for full scale or 0.2 for a quick test with a small network
 scaleEScon = 1 # scaling factor for number of excitatory connections in the network, should be set to 1
 
-numCycles = 6 # set to 2 for a short test network or 8 for a full simulation
+numCycles = 16 # set to 2 for a short test network or 8 for a full simulation
 simname="guitar"
 connect_random_low_start_ = 1  # low seed for mcell_ran4_init()
 
@@ -56,8 +56,8 @@ percentDeath = .0 # fraction of pyramidal cells to kill off
 calthresh = 0.01
 avgcalthresh = 0.01
 spikethresh = 3
-mgconc = 2.0
-affinitytype = 45
+mgconc = 1.0
+affinitytype = 0
 
 # Check for parameters being passed in via the command line
 argadd = 1
@@ -448,6 +448,7 @@ def prun():
     h.stdinit()
     if (pc.id()==0 and printflag>1):
         print("Parallel run is going to run till",h.tstop)
+    pc.barrier()
     pc.psolve(h.tstop);
     pc.barrier()  # wait for all hosts to get to this point
 
